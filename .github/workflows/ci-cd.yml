@@ -120,6 +120,10 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           load: true
+
+      - name: Set short SHA
+        id: vars
+         run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
       
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
