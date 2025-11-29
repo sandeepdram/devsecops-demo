@@ -126,11 +126,17 @@ jobs:
         run: |
           SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
           echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
-      
+ 
+      - name: Normalize image name (lowercase)
+        id: normalize
+        run: |
+         IMAGE_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+         echo "IMAGE_LC=$IMAGE_LC" >> $GITHUB_OUTPUT
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ghcr.io/${{ github.repository }}:sha-${{ steps.vars.outputs.SHORT_SHA }}
+          image-ref: ghcr.io/${{ steps.normalize.outputs.IMAGE_LC }}:sha-${{ steps.vars.outputs.SHORT_SHA }}
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
