@@ -130,8 +130,8 @@ jobs:
       - name: Normalize image name (lowercase)
         id: normalize
         run: |
-         IMAGE_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-         echo "IMAGE_LC=$IMAGE_LC" >> $GITHUB_OUTPUT
+          IMAGE_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_LC=$IMAGE_LC" >> $GITHUB_OUTPUT
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -171,28 +171,34 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
+      - name: Set short SHA for update-k8s
+        id: shortsha
+        run: |
+          echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
+
       - name: Update Kubernetes deployment file
         env:
-          IMAGE_TAG: sha-${{ github.sha.slice(0,7) }}
           REGISTRY: ghcr.io
-          IMAGE_LC: ${{ github.repository || '' }} 
+          IMAGE_REPO: ${{ github.repository }}
         run: |
-          # Convert repo name to lowercase
-          IMAGE_LC=$(echo "${IMAGE_LC}" | tr '[:upper:]' '[:lower:]')
+          # Lowercase the repo name (GHCR requirement)
+          IMAGE_LC=$(echo "${IMAGE_REPO}" | tr '[:upper:]' '[:lower:]')
 
-          # Build final image name
+          # Build final image tag
+          IMAGE_TAG="sha-${SHORT_SHA}"
+
           NEW_IMAGE="${REGISTRY}/${IMAGE_LC}:${IMAGE_TAG}"
 
           echo "Using image: $NEW_IMAGE"
 
-          # Update the deployment file
-          sed -i "s|image: ghcr.io/.*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
+          # Update YAML (replace only the image value)
+          sed -i "s|image: .*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
 
-          # Verify
+          # Show updated line
           grep -A 1 "image:" kubernetes/deployment.yaml
-      
+
       - name: Commit and push changes
         run: |
           git add kubernetes/deployment.yaml
-          git commit -m "Update Kubernetes deployment with new image tag: ${{ needs.docker.outputs.image_tag }} [skip ci]" || echo "No changes to commit"
+          git commit -m "Update Kubernetes deployment with new image tag: ${SHORT_SHA} [skip ci]" || echo "No changes to commit"
           git push
