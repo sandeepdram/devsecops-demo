@@ -170,21 +170,25 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-      
+
       - name: Update Kubernetes deployment file
         env:
-          IMAGE_TAG: sha-$(echo ${{ github.sha }} | cut -c1-7)
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          IMAGE_TAG: sha-${{ github.sha.slice(0,7) }}
           REGISTRY: ghcr.io
+          IMAGE_LC: ${{ github.repository || '' }} 
         run: |
-          # Define the new image with tag
-          NEW_IMAGE="${REGISTRY}/${GITHUB_REPOSITORY}:${IMAGE_TAG}"
-          
-          # Update the deployment file directly
-          sed -i "s|image: ${REGISTRY}/.*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
-          
-          # Verify the change
-          echo "Updated deployment to use image: ${NEW_IMAGE}"
+          # Convert repo name to lowercase
+          IMAGE_LC=$(echo "${IMAGE_LC}" | tr '[:upper:]' '[:lower:]')
+
+          # Build final image name
+          NEW_IMAGE="${REGISTRY}/${IMAGE_LC}:${IMAGE_TAG}"
+
+          echo "Using image: $NEW_IMAGE"
+
+          # Update the deployment file
+          sed -i "s|image: ghcr.io/.*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
+
+          # Verify
           grep -A 1 "image:" kubernetes/deployment.yaml
       
       - name: Commit and push changes
